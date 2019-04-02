@@ -1,7 +1,8 @@
 <?php 
 
 
-require_once 'Character.php';
+require_once 'Barbarian.php';
+require_once 'Wizard.php';
 require_once 'CharacterManager.php';
 
 if(!isset($_SESSION))
@@ -15,11 +16,20 @@ if(!isset($_SESSION))
 // }
 $charManager = new CharacterManager();
 
-$char = $charManager->charCreationCheck();
+$charManager->charCreationCheck();
 $characters = $charManager->getAllChar();
 
 $uriParameters = $_SERVER['REQUEST_URI'];
 $uri = explode("/", $uriParameters);
+
+if(isset($_GET['unsetSession']) && $_GET['unsetSession'] == TRUE) {
+    session_unset();
+}
+
+if(isset($_GET['use'])) {
+    $infoChar = $charManager->getCharById($_GET['use']);
+    $_SESSION['userChar'] = new $infoChar['type']($infoChar);
+}
 
 if(!isset($_SESSION['userChar'])) {
     $_SESSION['errorMessage'] = "veuillez créer un personnage pour pouvoir rentrer dans l'arêne!";
@@ -27,19 +37,42 @@ if(!isset($_SESSION['userChar'])) {
 
 if(isset($_GET['attack']) && $charManager->checkCharExistsByInfo((int)$_GET['attack']) && isset($_SESSION['userChar'])) {
     $infosTarget = $charManager->getCharById((int)$_GET['attack']);
-    $target = new Character($infosTarget);
+    $target = new $infosTarget['type']($infosTarget);
+    
+    $combatChars= [$target, $_SESSION['userChar'] ];
     if($target->id() != $_SESSION['userChar']->id()) {
         $_SESSION['userChar']->attack($target);
-        $charManager->updateChar($_SESSION['userChar'], $target);
-        $_SESSION['errorMessage'] = "";
+        
+        
+        
+        
+        if($target->damage() >= 100) {
+            
+            $charManager->deleteChar($target);
+            $_SESSION['userChar']->levelUp();
+        }
+        $charManager->updateChar($combatChars);
         header('Location: http://dev.Arena.com'); 
     }
     else {
         $_SESSION['errorMessage'] = "Impossible de se frapper soi même!";
     }
-} ?>
 
+} 
 
+if(isset($_GET['enchant']) && $charManager->checkCharExistsByInfo((int)$_GET['enchant']) && isset($_SESSION['userChar'])) {
+    $infosTarget = $charManager->getCharById((int)$_GET['enchant']);
+    
+    $target = new $infosTarget['type']($infosTarget);
+    
+    $combatChars= [$target, $_SESSION['userChar'] ];
+    if($target->id() != $_SESSION['userChar']->id()) {
+        
+        $_SESSION['userChar']->enchant($target);
+        $charManager->updateChar($combatChars);
+    }
+}
+?>
 
 
 
@@ -53,10 +86,18 @@ if(isset($_GET['attack']) && $charManager->checkCharExistsByInfo((int)$_GET['att
     </head>
     
     <body>
+    	<?php 	
+    	 if(isset($_SESSION['userChar'])){ ?>
+  		    <p><a href="?unsetSession=TRUE">Déconnexion</a></p>
+         <?php } ?>
+         
     	 <form action="" method="post">
     		<p>
-    			Nom : <input type="text" name="charName" maxlength="25" /> <input
-    				type="submit" value="Créer ce personnage" name="creer" />    			
+    			<label for="charName">Nom :</label> <input type="text" name="charName" maxlength="25" /> 
+    			<input type="radio" name="charType" value="Barbarian" /> <label for="charType">Barbare</label>
+    			<input type="radio" name="charType" value="Wizard" /> <label for="charType">Magicien</label> 
+    			
+    			<input type="submit" value="Créer ce personnage" name="creer" />    			
     		</p>
     		<?php if(isset($_SESSION['errorMessage']) && $_SESSION['errorMessage'] != "") {
     		    echo "<p>". $_SESSION['errorMessage'] . "</p>";
@@ -71,9 +112,21 @@ if(isset($_GET['attack']) && $charManager->checkCharExistsByInfo((int)$_GET['att
                   		<legend><?= ucfirst($char['name'])?></legend> 
                   		<p>PV : <?= 100 - $char['damage']?> <br/>
                   		   Niveau : <?= $char['level']?>
+                  		   Type : <?= $char['type']?>
                   		</p>
                   		
-                  		<p><a href="?attack=<?= $char['id']?>">attaquer</a></p>
+                  		
+                  		<?php 
+                  		if(!isset($_SESSION['userChar'])){ ?>
+                  		    <p><a href="?use=<?= $char['id']?>">utiliser</a></p>
+                  		<?php } 
+                  		
+                  		if(isset($_SESSION['userChar']) && $char['id'] != $_SESSION['userChar']->id() ) {?>
+                  			<p><a href="?attack=<?= $char['id']?>">attaquer</a></p>
+                  			<?php if($_SESSION['userChar']->type() == 'Wizard') {?>
+                  				<p><a href="?enchant=<?= $char['id']?>">enchanter</a></p>
+                  			<?php }
+    		             } ?>
               		</fieldset>
               	<?php }?>  		
 		</fieldset>

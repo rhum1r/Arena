@@ -4,12 +4,14 @@ require_once 'DbConnect.php';
 
 class Character {
     
-    private $_id;
-    private $_name;
-    private $_strength;
-    private $_damage;
-    private $_level;
-    private $_xp;
+    protected $_id;
+    protected $_name;
+    protected $_strength;
+    protected $_damage;
+    protected $_level;
+    protected $_xp;
+    protected $_type;
+    protected $_handicapsleep;
     
     public function __construct($datas) {
         
@@ -61,6 +63,17 @@ class Character {
     {
         return $this->_xp;
     }
+    
+    public function type()
+    {
+        return $this->_type;
+    }
+    
+    public function handicapsleep()
+    {
+        return $this->_handicapsleep;
+    }
+
     
     // Liste des setters
     
@@ -129,16 +142,55 @@ class Character {
     }
     
     
+    public function setType($type)
+    {
+        if(is_string($type)) {
+            $this->_type = $type;
+        }
+    }
+    
+    public function setHandicapsleep($handicapsleep)
+    {
+        if (is_int($handicapsleep) || $handicapsleep == null);
+        {
+            $this->_handicapsleep = $handicapsleep;
+        }
+    }
+    
 //////////////////////////////////////////////////////////////////////////////   
     
     public function attack(Character $target)
     {
-        return $target->receiveDamage($target);
+        if($this->_handicapsleep + 43200 < time()) {
+            
+            $_SESSION['errorMessage'] = "";
+            $this->inflictDamages($target);
+        }
+        else {
+            $timeLeft = date('H:i:s', (43200 - (time() - $this->_handicapsleep)));
+            $_SESSION['errorMessage'] = "Votre personnage est endormi! Votre pourrez attaquer de nouveau dans " . $timeLeft;
+        }
+        
+        if ($target->_damage <= 0) {
+            
+        }
     }
     
-    public function receiveDamage(Character $target)
+    public function inflictDamages (Character $target) 
     {
-        return $target->_damage = $this->_strength + $target->_damage;
+        $target->_damage += $this->_strength;
+    }
+    
+    public function levelUp() {
+        
+        $this->_xp += 20;
+        if($this->_xp == 100) {
+            
+            $this->_level += 1;
+            $this->_strength += round($this->_strength / $this->_level);
+            $this->_xp = 0;
+        }
+        
     }
 }
 

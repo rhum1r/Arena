@@ -2,7 +2,8 @@
 
 
 require_once 'DbConnect.php';
-require_once 'Character.php';
+require_once 'Barbarian.php';
+require_once 'Wizard.php';
 
 class CharacterManager extends DbConnect {
     
@@ -25,14 +26,14 @@ class CharacterManager extends DbConnect {
     }   
     
     public function charCreationCheck() {
-        if(isset($_POST) && !empty($_POST['charName'])) {
+        if(isset($_POST) && isset($_POST['charName']) && isset($_POST['charType'])) {
+            
             
             if($this->checkCharExistsByInfo($_POST['charName']) == false) {
-                $this->addChar($_POST['charName']);
+                $this->addChar($_POST['charName'], $_POST['charType']);
                 
                 $_SESSION['errorMessage'] = "";
-                return $_SESSION['userChar'] = $this->charCreate($_POST['charName']); 
-                 
+                return $_SESSION['userChar'] = $this->charCreate($_POST['charName'], $_POST['charType']);                 
             }
             else {
                 return $_SESSION['errorMessage'] = "Il semblerait que le personnage " .$_POST['charName']. " soit déjà pris!";
@@ -53,49 +54,58 @@ class CharacterManager extends DbConnect {
         return (bool) $q->fetchColumn();
     }
    
-    public function charCreate($newCharName) {
-        $char = new Character(
+    public function charCreate($newCharName, $newCharType) {
+        
+        $char = new $newCharType(
            ['name' => $newCharName,
             'id' => $this->_db->lastInsertId(),
             'damage' => 0,
             'xp' => 0,
             'level' => 1,
-            'strength' => 10
+            'strength' => 10,
+            'type' => $newCharType,
+            'handcapsleep' => 0
             ]);
         return $char;
     }
     
-    public function addChar($newCharName) {
-
-        $req = $this->_db->prepare('INSERT INTO characters(name) VALUES(:name)'); // Préparation de la requête d'insertion.
+    public function addChar($newCharName, $newCharType) {
+        $req = $this->_db->prepare('INSERT INTO characters(name, type) VALUES(:name, :type)'); // Préparation de la requête d'insertion.
         $req->bindValue(':name', $newCharName);
+        $req->bindValue(':type', $newCharType);
         $req->execute();
         
 
     }    
     
-    public function updateChar($attCharId, $targetCharId) {
-        var_dump($targetCharId);
-        $q = $this->_db->prepare('UPDATE characters SET damage = :damage,
-                                                        xp = :xp,
-                                                        level = :level,
-                                                        strength = :strength,
-                                                        name = :name
-
-                                                        WHERE id = :id');
+    public function updateChar($chars) {
         
-        $q->bindValue(':damage', $targetCharId->damage(), PDO::PARAM_INT);        
-        $q->bindValue(':xp', $targetCharId->xp(), PDO::PARAM_INT);        
-        $q->bindValue(':level', $targetCharId->level(), PDO::PARAM_INT);        
-        $q->bindValue(':strength', $targetCharId->strength(), PDO::PARAM_INT);        
-        $q->bindValue(':id', $targetCharId->id(), PDO::PARAM_INT);
-        $q->bindValue(':name', $targetCharId->name(), PDO::PARAM_STR);
-        
-        $q->execute();
+        foreach($chars as $char){
+            $q = $this->_db->prepare('UPDATE characters SET damage = :damage,
+                                                            xp = :xp,
+                                                            level = :level,
+                                                            strength = :strength,
+                                                            name = :name,
+                                                            handicapsleep = :handicapsleep
+    
+                                                            WHERE id = :id');
+            
+            $q->bindValue(':damage', $char->damage(), PDO::PARAM_INT);        
+            $q->bindValue(':xp', $char->xp(), PDO::PARAM_INT);        
+            $q->bindValue(':level', $char->level(), PDO::PARAM_INT);        
+            $q->bindValue(':strength', $char->strength(), PDO::PARAM_INT);        
+            $q->bindValue(':id', $char->id(), PDO::PARAM_INT);
+            $q->bindValue(':name', $char->name(), PDO::PARAM_STR);
+            $q->bindValue(':handicapsleep', $char->handicapsleep(), PDO::PARAM_INT);
+            
+            $q->execute();
+        }
     }    
     
-    public function deleteChar($CharId) {
-
+    public function deleteChar(Character $char) {
+        $req = $this->_db->prepare('DELETE from characters WHERE id = :id'); // Préparation de la requête d'insertion.
+        $req->bindValue(':id', $char->id(), PDO::PARAM_INT);
+        $req->execute();
     }    
 }
 
